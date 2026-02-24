@@ -13,7 +13,6 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        /* Custom Dropdown Styling */
         .dropdown-content {
             display: none;
             position: absolute;
@@ -61,8 +60,7 @@
                     <div class="p-2 sticky top-0 bg-white border-b border-gray-100">
                         <input type="text" id="searchInput" onkeyup="filterFunction()" placeholder="Cari nama..." class="w-full p-2 text-sm border border-gray-100 rounded-lg outline-none focus:border-blue-400">
                     </div>
-                    <div id="nameOptions">
-                        </div>
+                    <div id="nameOptions"></div>
                 </div>
                 <input type="hidden" id="userName" value="">
             </div>
@@ -77,8 +75,8 @@
                 </select>
             </div>
 
-            <div id="locStatus" class="text-center text-[11px] font-bold p-3 rounded-xl transition-all duration-300 bg-gray-50 text-gray-500 border border-gray-200">
-                <i class="fas fa-spinner fa-spin mr-2"></i> Mendeteksi Lokasi...
+            <div id="locStatus" class="text-center text-[11px] font-bold p-3 rounded-xl transition-all duration-300 bg-red-50 text-red-600 border border-red-200">
+                <i class="fas fa-exclamation-triangle mr-2"></i> Menunggu Lokasi...
             </div>
 
             <div>
@@ -86,7 +84,7 @@
                 <textarea id="keterangan" placeholder="Tuliskan plan/tasklist Anda hari ini..." class="w-full mt-1 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition h-24"></textarea>
             </div>
 
-            <button id="btnSubmit" onclick="kirimAbsen()" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-xl font-bold shadow-xl shadow-blue-100 transition-all active:scale-95 flex items-center justify-center gap-2 grayscale disabled:cursor-not-allowed">
+            <button id="btnSubmit" onclick="kirimAbsen()" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-xl font-bold shadow-xl shadow-blue-100 transition-all active:scale-95 flex items-center justify-center gap-2 grayscale cursor-not-allowed">
                 <i class="fas fa-paper-plane"></i> KIRIM DATA
             </button>
         </div>
@@ -104,12 +102,12 @@
 
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxvTAElThxZKJNY2ubkn5Cm31KVhFOBgDrSv3k6QX5ceec_1tAZJ8TwLHGKiGBMFDy2GA/exec';
 
-        const EMPLOYEES = [
-            "Andri Purwanto", "Biman Dwiputra Haryo", "George Rompis", 
-            "Rahmat Kurniawan", "Intan Permatasari", "Reza Miradz", "Ria"
-        ];
+        const EMPLOYEES = ["Andri Purwanto", "Biman Dwiputra Haryo", "George Rompis", "Rahmat Kurniawan", "Intan Permatasari", "Reza Miradz", "Ria"];
 
-        // --- CUSTOM DROPDOWN LOGIC ---
+        let userPos = null;
+        let currentDist = null;
+
+        // Custom Dropdown Logic
         function initDropdown() {
             const container = document.getElementById('nameOptions');
             EMPLOYEES.sort().forEach(name => {
@@ -121,11 +119,7 @@
             });
         }
 
-        function toggleDropdown() {
-            document.getElementById("myDropdown").classList.toggle("show");
-            document.getElementById("searchInput").focus();
-        }
-
+        function toggleDropdown() { document.getElementById("myDropdown").classList.toggle("show"); document.getElementById("searchInput").focus(); }
         function filterFunction() {
             const input = document.getElementById("searchInput");
             const filter = input.value.toUpperCase();
@@ -133,14 +127,9 @@
             const items = div.getElementsByTagName("div");
             for (let i = 0; i < items.length; i++) {
                 const txtValue = items[i].textContent || items[i].innerText;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    items[i].style.display = "";
-                } else {
-                    items[i].style.display = "none";
-                }
+                items[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
             }
         }
-
         function selectName(name) {
             document.getElementById("userName").value = name;
             document.getElementById("selectedLabel").innerText = name;
@@ -148,34 +137,20 @@
             document.getElementById("myDropdown").classList.remove("show");
         }
 
-        // Close dropdown when clicking outside
-        window.onclick = function(event) {
-            if (!event.target.closest('.relative')) {
-                const dropdowns = document.getElementsByClassName("dropdown-content");
-                for (let i = 0; i < dropdowns.length; i++) {
-                    if (dropdowns[i].classList.contains('show')) {
-                        dropdowns[i].classList.remove('show');
-                    }
-                }
-            }
-        }
-
-        // --- EXISTING LOGIC ---
-        let userPos = null;
-        let currentDist = null;
-
+        // Geolocation Logic dengan Proteksi "N/A"
         function initGeolocation() {
             if (!navigator.geolocation) {
-                updateStatusUI("GPS tidak didukung", "error");
+                updateStatusUI("GPS Tidak Didukung", "error");
                 return;
             }
             navigator.geolocation.watchPosition(pos => {
                 userPos = pos.coords;
                 currentDist = hitungJarak(CONFIG.lat, CONFIG.lng, pos.coords.latitude, pos.coords.longitude);
-                const status = document.getElementById('absenStatus').value;
-                if (status === "MASUK" || status === "KELUAR") handleGeofencingLogic();
+                handleStatusChange(); // Cek ulang status tombol setiap lokasi update
             }, err => {
-                updateStatusUI("Gagal akses GPS. Izinkan lokasi.", "error");
+                updateStatusUI("Gagal Akses GPS. Mohon Izinkan.", "error");
+                userPos = null; // Reset ke null jika akses dicabut
+                checkButtonState();
             }, { enableHighAccuracy: true });
         }
 
@@ -189,43 +164,42 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        function handleGeofencingLogic() {
+        function checkButtonState() {
             const btn = document.getElementById('btnSubmit');
-            if (currentDist <= CONFIG.radius) {
+            const status = document.getElementById('absenStatus').value;
+
+            // Jika status Sakit/Izin, tombol aktif tanpa GPS
+            if (status === "SAKIT" || status === "IZIN") {
+                updateStatusUI("<i class='fas fa-info-circle'></i> Geofencing Nonaktif", "info");
+                btn.disabled = false;
+                btn.classList.remove('grayscale', 'cursor-not-allowed');
+                return;
+            }
+
+            // Jika status Masuk/Keluar, harus ada userPos (bukan N/A) dan masuk Radius
+            if (!userPos) {
+                updateStatusUI("<i class='fas fa-times-circle'></i> Lokasi Tidak Terdeteksi", "error");
+                btn.disabled = true;
+                btn.classList.add('grayscale', 'cursor-not-allowed');
+            } else if (currentDist <= CONFIG.radius) {
                 updateStatusUI(`<i class='fas fa-check-circle'></i> Area Kantor (${Math.round(currentDist)}m)`, "success");
                 btn.disabled = false;
-                btn.classList.remove('grayscale');
+                btn.classList.remove('grayscale', 'cursor-not-allowed');
             } else {
                 updateStatusUI(`<i class='fas fa-exclamation-triangle'></i> Luar Radius (${Math.round(currentDist)}m)`, "error");
                 btn.disabled = true;
-                btn.classList.add('grayscale');
+                btn.classList.add('grayscale', 'cursor-not-allowed');
             }
         }
 
         function handleStatusChange() {
             const status = document.getElementById('absenStatus').value;
             const label = document.getElementById('labelKeterangan');
-            const area = document.getElementById('keterangan');
-            const btn = document.getElementById('btnSubmit');
-
-            if (status === "MASUK") {
-                label.innerText = "Rencana Kerja (Tasklist)";
-                area.placeholder = "Apa rencana project Anda hari ini?";
-            } else if (status === "SAKIT" || status === "IZIN") {
-                label.innerText = "Alasan Sakit / Izin";
-                area.placeholder = "Berikan keterangan alasan...";
-            } else {
-                label.innerText = "Keterangan";
-                area.placeholder = "Keterangan tambahan...";
-            }
-
-            if (status === "SAKIT" || status === "IZIN") {
-                updateStatusUI("<i class='fas fa-info-circle'></i> Geofencing Nonaktif", "info");
-                btn.disabled = false;
-                btn.classList.remove('grayscale');
-            } else if (userPos) {
-                handleGeofencingLogic();
-            }
+            if (status === "MASUK") label.innerText = "Rencana Kerja (Tasklist)";
+            else if (status === "SAKIT" || status === "IZIN") label.innerText = "Alasan Sakit / Izin";
+            else label.innerText = "Keterangan";
+            
+            checkButtonState();
         }
 
         function updateStatusUI(msg, type) {
@@ -234,8 +208,7 @@
             const styles = {
                 success: "bg-green-50 text-green-600 border-green-200",
                 error: "bg-red-50 text-red-600 border-red-200",
-                info: "bg-blue-50 text-blue-600 border-blue-200",
-                loading: "bg-gray-50 text-gray-500 border-gray-200"
+                info: "bg-blue-50 text-blue-600 border-blue-200"
             };
             div.className = `text-center text-[11px] font-bold p-3 rounded-xl border transition-all duration-300 ${styles[type]}`;
         }
@@ -245,8 +218,11 @@
             const status = document.getElementById('absenStatus').value;
             const ket = document.getElementById('keterangan').value.trim();
 
-            if(!name) { alert("Silakan pilih nama Anda!"); return; }
-            if(status === "MASUK" && !ket) { alert("Harap isi Tasklist!"); return; }
+            if(!name) { alert("Pilih nama Anda!"); return; }
+            if(!userPos && (status === "MASUK" || status === "KELUAR")) { 
+                alert("Gagal mengirim! Lokasi Anda belum terdeteksi (N/A). Mohon izinkan GPS."); 
+                return; 
+            }
 
             const btn = document.getElementById('btnSubmit');
             btn.disabled = true;
@@ -263,19 +239,16 @@
 
             try {
                 await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
-                alert("Data berhasil terkirim ke Five Arena Digital!");
+                alert("Absensi Berhasil!");
                 location.reload();
             } catch (error) {
-                alert("Gagal mengirim data.");
+                alert("Gagal kirim data.");
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-paper-plane"></i> KIRIM DATA';
             }
         }
 
-        window.onload = () => {
-            initGeolocation();
-            initDropdown();
-        };
+        window.onload = () => { initGeolocation(); initDropdown(); };
     </script>
 </body>
 </html>
