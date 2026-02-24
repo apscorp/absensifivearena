@@ -28,17 +28,17 @@
 
         <div id="mainAbsen" class="space-y-4">
             <div>
-                <label class="text-xs font-bold text-gray-600 uppercase ml-1">Cari / Pilih Nama Karyawan</label>
-                <input list="employeeList" id="userName" placeholder="Ketik nama untuk mencari..." class="w-full mt-1 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition bg-white">
-                <datalist id="employeeList">
-                    <option value="Andri Purwanto">
-                    <option value="Biman Dwiputra Haryo">
-                    <option value="George Rompis">
-                    <option value="Rahmat Kurniawan">
-                    <option value="Intan Permatasari">
-                    <option value="Reza Miradz">
-                    <option value="Ria">
-                </datalist>
+                <label class="text-xs font-bold text-gray-600 uppercase ml-1">Nama Karyawan</label>
+                <select id="userName" class="w-full mt-1 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition bg-white">
+                    <option value="" disabled selected>Pilih Nama Anda</option>
+                    <option value="Andri Purwanto">Andri Purwanto</option>
+                    <option value="Biman Dwiputra Haryo">Biman Dwiputra Haryo</option>
+                    <option value="George Rompis">George Rompis</option>
+                    <option value="Rahmat Kurniawan">Rahmat Kurniawan</option>
+                    <option value="Intan Permatasari">Intan Permatasari</option>
+                    <option value="Reza Miradz">Reza Miradz</option>
+                    <option value="Ria">Ria</option>
+                </select>
             </div>
             
             <div>
@@ -77,12 +77,6 @@
         };
 
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxvTAElThxZKJNY2ubkn5Cm31KVhFOBgDrSv3k6QX5ceec_1tAZJ8TwLHGKiGBMFDy2GA/exec';
-
-        // Daftar nama valid untuk pengecekan
-        const VALID_NAMES = [
-            "Andri Purwanto", "Biman Dwiputra Haryo", "George Rompis", 
-            "Rahmat Kurniawan", "Intan Permatasari", "Reza Miradz", "Ria"
-        ];
 
         let userPos = null;
         let currentDist = null;
@@ -169,16 +163,11 @@
         }
 
         async function kirimAbsen() {
-            const nameInput = document.getElementById('userName').value.trim();
+            const name = document.getElementById('userName').value;
             const status = document.getElementById('absenStatus').value;
             const ket = document.getElementById('keterangan').value.trim();
 
-            // Validasi: Input tidak boleh kosong dan harus ada di daftar
-            if(!nameInput) { alert("Nama tidak boleh kosong!"); return; }
-            if(!VALID_NAMES.includes(nameInput)) { 
-                alert("Pilih nama yang tersedia di daftar!"); 
-                return; 
-            }
+            if(!name) { alert("Silakan pilih nama karyawan!"); return; }
             if(status === "MASUK" && !ket) { alert("Harap isi Tasklist!"); return; }
 
             const btn = document.getElementById('btnSubmit');
@@ -187,7 +176,7 @@
 
             const payload = {
                 companyName: CONFIG.name,
-                userName: nameInput,
+                userName: name,
                 status: status,
                 coords: userPos ? `${userPos.latitude}, ${userPos.longitude}` : "N/A",
                 distance: currentDist ? Math.round(currentDist) : 0,
@@ -197,7 +186,7 @@
             try {
                 await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
                 alert("Data berhasil terkirim ke Five Arena Digital!");
-                document.getElementById('userName').value = "";
+                document.getElementById('userName').selectedIndex = 0;
                 document.getElementById('keterangan').value = "";
             } catch (error) {
                 alert("Gagal mengirim data.");
