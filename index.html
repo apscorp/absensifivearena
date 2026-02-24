@@ -13,6 +13,29 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
+        /* Custom Dropdown Styling */
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            width: 100%;
+            max-height: 250px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            z-index: 50;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .dropdown-item {
+            padding: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .dropdown-item:hover {
+            background-color: #f3f4f6;
+            color: #2563eb;
+        }
+        .show { display: block; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
@@ -27,18 +50,21 @@
         </div>
 
         <div id="mainAbsen" class="space-y-4">
-            <div>
+            <div class="relative">
                 <label class="text-xs font-bold text-gray-600 uppercase ml-1">Nama Karyawan</label>
-                <select id="userName" class="w-full mt-1 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition bg-white">
-                    <option value="" disabled selected>Pilih Nama Anda</option>
-                    <option value="Andri Purwanto">Andri Purwanto</option>
-                    <option value="Biman Dwiputra Haryo">Biman Dwiputra Haryo</option>
-                    <option value="George Rompis">George Rompis</option>
-                    <option value="Rahmat Kurniawan">Rahmat Kurniawan</option>
-                    <option value="Intan Permatasari">Intan Permatasari</option>
-                    <option value="Reza Miradz">Reza Miradz</option>
-                    <option value="Ria">Ria</option>
-                </select>
+                <div id="selectBtn" onclick="toggleDropdown()" class="w-full mt-1 p-3 border border-gray-200 rounded-xl bg-white flex justify-between items-center cursor-pointer focus:ring-2 focus:ring-blue-400 outline-none transition">
+                    <span id="selectedLabel">Pilih Nama Anda</span>
+                    <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+                </div>
+                
+                <div id="myDropdown" class="dropdown-content mt-1">
+                    <div class="p-2 sticky top-0 bg-white border-b border-gray-100">
+                        <input type="text" id="searchInput" onkeyup="filterFunction()" placeholder="Cari nama..." class="w-full p-2 text-sm border border-gray-100 rounded-lg outline-none focus:border-blue-400">
+                    </div>
+                    <div id="nameOptions">
+                        </div>
+                </div>
+                <input type="hidden" id="userName" value="">
             </div>
             
             <div>
@@ -57,7 +83,7 @@
 
             <div>
                 <label id="labelKeterangan" class="text-xs font-bold text-gray-600 uppercase ml-1">Rencana Kerja (Tasklist)</label>
-                <textarea id="keterangan" placeholder="Tuliskan plan/tasklist Anda hari ini..." class="w-full mt-1 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition h-28"></textarea>
+                <textarea id="keterangan" placeholder="Tuliskan plan/tasklist Anda hari ini..." class="w-full mt-1 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition h-24"></textarea>
             </div>
 
             <button id="btnSubmit" onclick="kirimAbsen()" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-xl font-bold shadow-xl shadow-blue-100 transition-all active:scale-95 flex items-center justify-center gap-2 grayscale disabled:cursor-not-allowed">
@@ -78,23 +104,76 @@
 
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxvTAElThxZKJNY2ubkn5Cm31KVhFOBgDrSv3k6QX5ceec_1tAZJ8TwLHGKiGBMFDy2GA/exec';
 
+        const EMPLOYEES = [
+            "Andri Purwanto", "Biman Dwiputra Haryo", "George Rompis", 
+            "Rahmat Kurniawan", "Intan Permatasari", "Reza Miradz", "Ria"
+        ];
+
+        // --- CUSTOM DROPDOWN LOGIC ---
+        function initDropdown() {
+            const container = document.getElementById('nameOptions');
+            EMPLOYEES.sort().forEach(name => {
+                const div = document.createElement('div');
+                div.className = 'dropdown-item text-sm text-gray-700';
+                div.innerText = name;
+                div.onclick = () => selectName(name);
+                container.appendChild(div);
+            });
+        }
+
+        function toggleDropdown() {
+            document.getElementById("myDropdown").classList.toggle("show");
+            document.getElementById("searchInput").focus();
+        }
+
+        function filterFunction() {
+            const input = document.getElementById("searchInput");
+            const filter = input.value.toUpperCase();
+            const div = document.getElementById("nameOptions");
+            const items = div.getElementsByTagName("div");
+            for (let i = 0; i < items.length; i++) {
+                const txtValue = items[i].textContent || items[i].innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    items[i].style.display = "";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
+        }
+
+        function selectName(name) {
+            document.getElementById("userName").value = name;
+            document.getElementById("selectedLabel").innerText = name;
+            document.getElementById("selectedLabel").classList.add("text-blue-600", "font-semibold");
+            document.getElementById("myDropdown").classList.remove("show");
+        }
+
+        // Close dropdown when clicking outside
+        window.onclick = function(event) {
+            if (!event.target.closest('.relative')) {
+                const dropdowns = document.getElementsByClassName("dropdown-content");
+                for (let i = 0; i < dropdowns.length; i++) {
+                    if (dropdowns[i].classList.contains('show')) {
+                        dropdowns[i].classList.remove('show');
+                    }
+                }
+            }
+        }
+
+        // --- EXISTING LOGIC ---
         let userPos = null;
         let currentDist = null;
 
         function initGeolocation() {
             if (!navigator.geolocation) {
-                updateStatusUI("GPS tidak didukung oleh browser", "error");
+                updateStatusUI("GPS tidak didukung", "error");
                 return;
             }
-
             navigator.geolocation.watchPosition(pos => {
                 userPos = pos.coords;
                 currentDist = hitungJarak(CONFIG.lat, CONFIG.lng, pos.coords.latitude, pos.coords.longitude);
-                
                 const status = document.getElementById('absenStatus').value;
-                if (status === "MASUK" || status === "KELUAR") {
-                    handleGeofencingLogic();
-                }
+                if (status === "MASUK" || status === "KELUAR") handleGeofencingLogic();
             }, err => {
                 updateStatusUI("Gagal akses GPS. Izinkan lokasi.", "error");
             }, { enableHighAccuracy: true });
@@ -137,16 +216,15 @@
                 area.placeholder = "Berikan keterangan alasan...";
             } else {
                 label.innerText = "Keterangan";
-                area.placeholder = "Keterangan tambahan (opsional)...";
+                area.placeholder = "Keterangan tambahan...";
             }
 
             if (status === "SAKIT" || status === "IZIN") {
                 updateStatusUI("<i class='fas fa-info-circle'></i> Geofencing Nonaktif", "info");
                 btn.disabled = false;
                 btn.classList.remove('grayscale');
-            } else {
-                if (userPos) handleGeofencingLogic();
-                else updateStatusUI("Mendeteksi Lokasi...", "loading");
+            } else if (userPos) {
+                handleGeofencingLogic();
             }
         }
 
@@ -167,7 +245,7 @@
             const status = document.getElementById('absenStatus').value;
             const ket = document.getElementById('keterangan').value.trim();
 
-            if(!name) { alert("Silakan pilih nama karyawan!"); return; }
+            if(!name) { alert("Silakan pilih nama Anda!"); return; }
             if(status === "MASUK" && !ket) { alert("Harap isi Tasklist!"); return; }
 
             const btn = document.getElementById('btnSubmit');
@@ -186,18 +264,18 @@
             try {
                 await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
                 alert("Data berhasil terkirim ke Five Arena Digital!");
-                document.getElementById('userName').selectedIndex = 0;
-                document.getElementById('keterangan').value = "";
+                location.reload();
             } catch (error) {
                 alert("Gagal mengirim data.");
-            } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-paper-plane"></i> KIRIM DATA';
-                handleStatusChange();
             }
         }
 
-        window.onload = initGeolocation;
+        window.onload = () => {
+            initGeolocation();
+            initDropdown();
+        };
     </script>
 </body>
 </html>
