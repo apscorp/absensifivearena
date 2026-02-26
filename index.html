@@ -65,14 +65,23 @@
                 <input type="hidden" id="userName" value="">
             </div>
             
-            <div>
-                <label class="text-xs font-bold text-gray-600 uppercase ml-1">Status Kehadiran</label>
-                <select id="absenStatus" onchange="handleStatusChange()" class="w-full mt-1 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition bg-white">
-                    <option value="MASUK">Absen Masuk (Clock In)</option>
-                    <option value="KELUAR">Absen Keluar (Clock Out)</option>
-                    <option value="SAKIT">Sakit</option>
-                    <option value="IZIN">Izin</option>
-                </select>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-bold text-gray-600 uppercase ml-1">Tipe Kerja</label>
+                    <select id="workType" onchange="handleStatusChange()" class="w-full mt-1 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition bg-white text-sm">
+                        <option value="WFO">WFO (Kantor)</option>
+                        <option value="WFH">WFH / WFA</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 uppercase ml-1">Status</label>
+                    <select id="absenStatus" onchange="handleStatusChange()" class="w-full mt-1 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none transition bg-white text-sm">
+                        <option value="MASUK">Masuk</option>
+                        <option value="KELUAR">Keluar</option>
+                        <option value="SAKIT">Sakit</option>
+                        <option value="IZIN">Izin</option>
+                    </select>
+                </div>
             </div>
 
             <div id="locStatus" class="text-center text-[11px] font-bold p-3 rounded-xl transition-all duration-300 bg-red-50 text-red-600 border border-red-200">
@@ -102,7 +111,7 @@
 
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxvTAElThxZKJNY2ubkn5Cm31KVhFOBgDrSv3k6QX5ceec_1tAZJ8TwLHGKiGBMFDy2GA/exec';
 
-        const EMPLOYEES = ["Andri Purwanto", "Biman Dwiputra Haryo", "George Rompis", "Rahmat Kurniawan", "Intan Permatasari", "Reza Miradz", "Ria Andini"];
+        const EMPLOYEES = ["Andri Purwanto", "Biman Dwiputra Haryo", "George Rompis", "Intan Permatasari", "Rahmat Kurniawan", "Reza Miradz", "Ria Andini"];
 
         let userPos = null;
         let currentDist = null;
@@ -120,6 +129,7 @@
         }
 
         function toggleDropdown() { document.getElementById("myDropdown").classList.toggle("show"); document.getElementById("searchInput").focus(); }
+        
         function filterFunction() {
             const input = document.getElementById("searchInput");
             const filter = input.value.toUpperCase();
@@ -130,6 +140,7 @@
                 items[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
             }
         }
+
         function selectName(name) {
             document.getElementById("userName").value = name;
             document.getElementById("selectedLabel").innerText = name;
@@ -137,7 +148,7 @@
             document.getElementById("myDropdown").classList.remove("show");
         }
 
-        // Geolocation Logic dengan Proteksi "N/A"
+        // Geolocation Logic
         function initGeolocation() {
             if (!navigator.geolocation) {
                 updateStatusUI("GPS Tidak Didukung", "error");
@@ -146,11 +157,11 @@
             navigator.geolocation.watchPosition(pos => {
                 userPos = pos.coords;
                 currentDist = hitungJarak(CONFIG.lat, CONFIG.lng, pos.coords.latitude, pos.coords.longitude);
-                handleStatusChange(); // Cek ulang status tombol setiap lokasi update
+                handleStatusChange(); 
             }, err => {
                 updateStatusUI("Gagal Akses GPS. Mohon Izinkan.", "error");
-                userPos = null; // Reset ke null jika akses dicabut
-                checkButtonState();
+                userPos = null;
+                handleStatusChange();
             }, { enableHighAccuracy: true });
         }
 
@@ -164,11 +175,18 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        function checkButtonState() {
-            const btn = document.getElementById('btnSubmit');
+        function handleStatusChange() {
             const status = document.getElementById('absenStatus').value;
+            const workType = document.getElementById('workType').value;
+            const label = document.getElementById('labelKeterangan');
+            const btn = document.getElementById('btnSubmit');
 
-            // Jika status Sakit/Izin, tombol aktif tanpa GPS
+            // Update Label Keterangan
+            if (status === "MASUK") label.innerText = "Rencana Kerja (Tasklist)";
+            else if (status === "SAKIT" || status === "IZIN") label.innerText = "Alasan Sakit / Izin";
+            else label.innerText = "Keterangan Selesai";
+
+            // LOGIKA VALIDASI TOMBOL & UI
             if (status === "SAKIT" || status === "IZIN") {
                 updateStatusUI("<i class='fas fa-info-circle'></i> Geofencing Nonaktif", "info");
                 btn.disabled = false;
@@ -176,30 +194,28 @@
                 return;
             }
 
-            // Jika status Masuk/Keluar, harus ada userPos (bukan N/A) dan masuk Radius
             if (!userPos) {
-                updateStatusUI("<i class='fas fa-times-circle'></i> Lokasi Tidak Terdeteksi", "error");
+                updateStatusUI("<i class='fas fa-times-circle'></i> Lokasi Belum Terdeteksi", "error");
                 btn.disabled = true;
                 btn.classList.add('grayscale', 'cursor-not-allowed');
-            } else if (currentDist <= CONFIG.radius) {
-                updateStatusUI(`<i class='fas fa-check-circle'></i> Area Kantor (${Math.round(currentDist)}m)`, "success");
+                return;
+            }
+
+            if (workType === "WFH") {
+                updateStatusUI("<i class='fas fa-home'></i> Mode WFH: Lokasi Tercatat", "success");
                 btn.disabled = false;
                 btn.classList.remove('grayscale', 'cursor-not-allowed');
-            } else {
-                updateStatusUI(`<i class='fas fa-exclamation-triangle'></i> Luar Radius (${Math.round(currentDist)}m)`, "error");
-                btn.disabled = true;
-                btn.classList.add('grayscale', 'cursor-not-allowed');
+            } else { // Mode WFO
+                if (currentDist <= CONFIG.radius) {
+                    updateStatusUI(`<i class='fas fa-check-circle'></i> Area Kantor (${Math.round(currentDist)}m)`, "success");
+                    btn.disabled = false;
+                    btn.classList.remove('grayscale', 'cursor-not-allowed');
+                } else {
+                    updateStatusUI(`<i class='fas fa-exclamation-triangle'></i> Luar Radius (${Math.round(currentDist)}m)`, "error");
+                    btn.disabled = true;
+                    btn.classList.add('grayscale', 'cursor-not-allowed');
+                }
             }
-        }
-
-        function handleStatusChange() {
-            const status = document.getElementById('absenStatus').value;
-            const label = document.getElementById('labelKeterangan');
-            if (status === "MASUK") label.innerText = "Rencana Kerja (Tasklist)";
-            else if (status === "SAKIT" || status === "IZIN") label.innerText = "Alasan Sakit / Izin";
-            else label.innerText = "Keterangan";
-            
-            checkButtonState();
         }
 
         function updateStatusUI(msg, type) {
@@ -216,13 +232,11 @@
         async function kirimAbsen() {
             const name = document.getElementById('userName').value;
             const status = document.getElementById('absenStatus').value;
+            const workType = document.getElementById('workType').value;
             const ket = document.getElementById('keterangan').value.trim();
 
             if(!name) { alert("Pilih nama Anda!"); return; }
-            if(!userPos && (status === "MASUK" || status === "KELUAR")) { 
-                alert("Gagal mengirim! Lokasi Anda belum terdeteksi (N/A). Mohon izinkan GPS."); 
-                return; 
-            }
+            if(!ket && status === "MASUK") { alert("Harap isi Tasklist!"); return; }
 
             const btn = document.getElementById('btnSubmit');
             btn.disabled = true;
@@ -231,7 +245,7 @@
             const payload = {
                 companyName: CONFIG.name,
                 userName: name,
-                status: status,
+                status: status + " (" + workType + ")", // Contoh: MASUK (WFH)
                 coords: userPos ? `${userPos.latitude}, ${userPos.longitude}` : "N/A",
                 distance: currentDist ? Math.round(currentDist) : 0,
                 keterangan: ket || "-"
@@ -239,7 +253,7 @@
 
             try {
                 await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
-                alert("Absensi Berhasil!");
+                alert("Absensi Berhasil dikirim!");
                 location.reload();
             } catch (error) {
                 alert("Gagal kirim data.");
